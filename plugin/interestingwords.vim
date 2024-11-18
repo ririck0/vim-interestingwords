@@ -1,7 +1,22 @@
-" --------------------------------------------------------------------
+" -------------------------------------------------------------------------
 " This plugin was inspired and based on Steve Losh's interesting words
 " .vimrc config https://www.youtube.com/watch?v=xZuy4gBghho
-" --------------------------------------------------------------------
+" Modified by Pierrick VAN LOO to extend highlighting across multiple files
+" and sessions, ensuring consistent behavior across all open windows.
+" -------------------------------------------------------------------------
+
+" This program is free software: you can redistribute it and/or modify
+" it under the terms of the GNU General Public License as published by
+" the Free Software Foundation, either version 3 of the License, or
+" (at your option) any later version.
+"
+" This program is distributed in the hope that it will be useful,
+" but WITHOUT ANY WARRANTY; without even the implied warranty of
+" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+" GNU General Public License for more details.
+"
+" You should have received a copy of the GNU General Public License
+" along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 let s:interestingWordsGUIColors = ['#aeee00', '#ff0000', '#0000ff', '#b88823', '#ffa724', '#ff2c4b']
 let s:interestingWordsTermColors = ['154', '121', '211', '137', '214', '222']
@@ -21,7 +36,7 @@ function! ColorWord(word, mode)
     call s:buildColors()
   endif
 
-  " gets the lowest unused index
+  " Gets the lowest unused index
   let n = index(s:interestingWords, 0)
   if (n == -1)
     if !(exists('g:interestingWordsCycleColors') && g:interestingWordsCycleColors)
@@ -42,6 +57,8 @@ function! ColorWord(word, mode)
 
   call s:markRecentlyUsed(n)
 
+  " Apply highlighting to all windows
+  call ApplyHighlightingToAllWindows()
 endfunction
 
 function! s:apply_color_to_word(n, word, mode, mid)
@@ -77,15 +94,28 @@ function! s:nearest_group_at_cursor() abort
 endfunction
 
 function! UncolorWord(word)
+  " Save the current window
+  let current_window = winnr()
+
+  " Uncolor in all windows
+  for win in range(1, winnr('$'))
+    execute win . 'wincmd w'
+    " Remove the match id associated with the word
+    let mid = get(s:mids, a:word, 0)
+    if mid > -1
+      silent! call matchdelete(mid)
+    endif
+  endfor
+
+  " Update global data structures
   let index = index(s:interestingWords, a:word)
-
-  if (index > -1)
-    let mid = s:mids[a:word]
-
-    silent! call matchdelete(mid)
+  if index > -1
     let s:interestingWords[index] = 0
     unlet s:mids[a:word]
   endif
+
+  " Restore the current window
+  execute current_window . 'wincmd w'
 endfunction
 
 function! s:getmatch(mid) abort
@@ -157,7 +187,7 @@ endfunction
 
 function! UncolorAllWords()
   for word in s:interestingWords
-    " check that word is actually a String since '0' is falsy
+    " Check that word is actually a String since '0' is falsy
     if (type(word) == 1)
       call UncolorWord(word)
     endif
@@ -176,18 +206,18 @@ function! RecolorAllWords()
   endfor
 endfunction
 
-" returns true if the ignorecase flag needs to be used
+" Returns true if the ignorecase flag needs to be used
 function! s:checkIgnoreCase(word)
-  " return false if case sensitive is used
+  " Return false if case sensitive is used
   if (exists('g:interestingWordsCaseSensitive'))
     return !g:interestingWordsCaseSensitive
   endif
-  " checks ignorecase
-  " and then if smartcase is on, check if the word contains an uppercase char
+  " Checks ignorecase
+  " And then if smartcase is on, check if the word contains an uppercase char
   return &ignorecase && (!&smartcase || (match(a:word, '\u') == -1))
 endfunction
 
-" moves the index to the back of the s:recentlyUsed list
+" Moves the index to the back of the s:recentlyUsed list
 function! s:markRecentlyUsed(n)
   let index = index(s:recentlyUsed, a:n)
   call remove(s:recentlyUsed, index)
@@ -201,9 +231,9 @@ function! s:uiMode()
       \ 'gui' : 'cterm'
 endfunction
 
-" initialise highlight colors from list of GUIColors
-" initialise length of s:interestingWord list
-" initialise s:recentlyUsed list
+" Initialize highlight colors from list of GUIColors
+" Initialize length of s:interestingWord list
+" Initialize s:recentlyUsed list
 function! s:buildColors()
   if (s:hasBuiltColors)
     return
@@ -211,7 +241,7 @@ function! s:buildColors()
   let ui = s:uiMode()
   let wordColors = (ui == 'gui') ? g:interestingWordsGUIColors : g:interestingWordsTermColors
   if (exists('g:interestingWordsRandomiseColors') && g:interestingWordsRandomiseColors)
-    " fisher-yates shuffle
+    " Fisher-Yates shuffle
     let i = len(wordColors)-1
     while i > 0
       let j = s:Random(i)
@@ -221,8 +251,8 @@ function! s:buildColors()
       let i -= 1
     endwhile
   endif
-  " select ui type
-  " highlight group indexed from 1
+  " Select ui type
+  " Highlight group indexed from 1
   let currentIndex = 1
   for wordColor in wordColors
     execute 'hi! def InterestingWord' . currentIndex . ' ' . ui . 'bg=' . wordColor . ' ' . ui . 'fg=Black'
@@ -232,9 +262,9 @@ function! s:buildColors()
     let currentIndex += 1
   endfor
   let s:hasBuiltColors = 1
-endfunc
+endfunction
 
-" helper function to get random number between 0 and n-1 inclusive
+" Helper function to get random number between 0 and n-1 inclusive
 function! s:Random(n)
   let timestamp = reltimestr(reltime())[-2:]
   return float2nr(floor(a:n * timestamp/100))
@@ -261,10 +291,30 @@ if g:interestingWordsDefaultMappings
                \ :call InterestingWords('v')<cr>
       nnoremap <silent> <unique> <script> <Plug>InterestingWordsClear
                \ :call UncolorAllWords()<cr>
-      nnoremap <silent> <unique> <script> <Plug>InterestingWordsForeward
+      nnoremap <silent> <unique> <script> <Plug>InterestingWordsForward
                \ :call WordNavigation(1)<cr>
       nnoremap <silent> <unique> <script> <Plug>InterestingWordsBackward
                \ :call WordNavigation(0)<cr>
    catch /E227/
    endtry
 endif
+
+function! ApplyHighlightingToAllWindows()
+  " Save the current window
+  let current_window = winnr()
+
+  " Loop through all windows and apply highlighting
+  for win in range(1, winnr('$'))
+    execute win . 'wincmd w'
+    call RecolorAllWords()
+  endfor
+
+  " Restore the current window
+  execute current_window . 'wincmd w'
+endfunction
+
+function! ApplyHighlightingToCurrentWindow()
+  call RecolorAllWords()
+endfunction
+
+autocmd WinEnter * call ApplyHighlightingToCurrentWindow()
