@@ -9,7 +9,7 @@ vim-interestingwords highlights the occurrences of the word under the cursor thr
 The recommended installation is through `vim-plug`:
 
 ```vimscript
-Plug 'lfv89/vim-interestingwords'
+Plug 'ririck0/vim-interestingwords'
 ```
 
 ## Usage
@@ -65,6 +65,10 @@ Also, if you want to randomise the colors (applied to each new buffer), add this
 let g:interestingWordsRandomiseColors = 1
 ```
 
+## Extended Functionality
+
+The plugin has been extended to support highlighting across multiple files and sessions, ensuring consistent behavior across all open windows. This modification ensures that the highlighting is applied to all open buffers, including those opened after the initial session.
 ## Credits
 
-The idea to build this plugin came from the **@stevelosh** video's where he shows some pretty cool configurations from his .vimrc. He named this configuration interesting words, and I choose to keep the name for this plugin. The video is on youtube: https://www.youtube.com/watch?v=xZuy4gBghho
+The idea to build this plugin came from the @stevelosh video's where he shows some pretty cool configurations from his .vimrc. He named this configuration interesting words, and I chose to keep the name for this plugin. The video is on YouTube: https://www.youtube.com/watch?v=xZuy4gBghho
+This plugin was further modified to extend highlighting across multiple files and sessions, ensuring consistent behavior across all open windows.
